@@ -1,39 +1,63 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { ChartPoint } from "@/lib/types"
-import { Info } from "lucide-react"
+import { useState } from 'react';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+import { Info } from 'lucide-react';
+import { ChartPoint } from '@/domains/payment-health/types/chart-point';
 
 interface ChartBlockProps {
-  title: string
-  description: string
-  data: ChartPoint[]
-  timeRanges: string[]
-  yAxisLabel: string
-  xAxisLabel: string
+  title: string;
+  description: string;
+  data: ChartPoint[];
+  timeRanges: string[];
+  yAxisLabel: string;
+  xAxisLabel: string;
 }
 
-export default function ChartBlock({ title, description, data, timeRanges, yAxisLabel, xAxisLabel }: ChartBlockProps) {
-  const [timeRange, setTimeRange] = useState(timeRanges[0])
+export default function ChartBlock({
+  title,
+  description,
+  data,
+  timeRanges,
+  yAxisLabel,
+  xAxisLabel,
+}: ChartBlockProps) {
+  const [timeRange, setTimeRange] = useState(timeRanges[0]);
 
   const chartConfig = {
     duration: {
-      label: "Duration (sec)",
-      color: "hsl(var(--chart-1))",
+      label: 'Duration (sec)',
+      color: 'hsl(var(--chart-1))',
     },
-  }
+  };
 
   return (
-    <Card className="flex flex-col h-full">
+    <Card className="flex h-full flex-col">
       <CardHeader className="flex-row items-center justify-between pb-2">
         <div className="grid gap-1.5">
           <CardTitle>{title}</CardTitle>
           <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-muted-foreground" />
+            <Info className="text-muted-foreground h-4 w-4" />
             <CardDescription>{description}</CardDescription>
           </div>
         </div>
@@ -50,8 +74,8 @@ export default function ChartBlock({ title, description, data, timeRanges, yAxis
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent className="flex-1 flex">
-        <ChartContainer config={chartConfig} className="w-full h-[250px]">
+      <CardContent className="flex flex-1">
+        <ChartContainer config={chartConfig} className="h-[250px] w-full">
           <LineChart
             accessibilityLayer
             data={data}
@@ -69,19 +93,29 @@ export default function ChartBlock({ title, description, data, timeRanges, yAxis
               axisLine={false}
               tickMargin={8}
               tickFormatter={(value) => value.slice(0, 5)}
-              label={{ value: xAxisLabel, position: "insideBottom", offset: -15 }}
+              label={{
+                value: xAxisLabel,
+                position: 'insideBottom',
+                offset: -15,
+              }}
             />
             <YAxis
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              label={{ value: yAxisLabel, angle: -90, position: "insideLeft" }}
+              label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            <Line dataKey="y" type="monotone" stroke="var(--color-duration)" strokeWidth={2} dot={false} />
+            <Line
+              dataKey="y"
+              type="monotone"
+              stroke="var(--color-duration)"
+              strokeWidth={2}
+              dot={false}
+            />
           </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,4 +1,7 @@
+"use client"
+
 import Image from "next/image";
+import { toast } from "sonner";
 
 export default function Home() {
   return (
@@ -50,6 +53,12 @@ export default function Home() {
             Read our docs
           </a>
         </div>
+        <button
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground"
+            onClick={() => toast.success("Data saved successfully!")}
+        >
+          Save
+        </button>
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a

@@ -1,8 +1,8 @@
 import { MarkerType } from '@xyflow/react';
 import { type AppNode } from '../types/app-node';
 
-export const edgeStyle = { stroke: '#b57228', strokeWidth: 2 };
-export const marker = { type: MarkerType.ArrowClosed, color: '#b57228' };
+export const edgeStyle = { stroke: '#6b7280', strokeWidth: 2 };
+export const marker = { type: MarkerType.ArrowClosed, color: '#6b7280' };
 
 export function transformApiData(
   apiData: { nodes: any[]; edges: any[] },
@@ -18,39 +18,43 @@ export function transformApiData(
   ).reduce((acc, key: string) => ({ ...acc, [key]: 0 }), {});
 
   const transformedNodes: AppNode[] = apiData.nodes
-    .map((apiNode: any) => {
-      const parentId =
-        apiNode.class && classToParentId[apiNode.class]
-          ? classToParentId[apiNode.class]
-          : null;
+    .map((apiNode): AppNode | null => {
+      const parentId = classToParentId[apiNode.class];
+      if (!parentId) return null;
 
-      const sectionConfig =
-        parentId !== null ? sectionPositions[parentId] : undefined;
-      const positionIndex =
-        parentId !== null ? sectionCounters[parentId]!++ : 0;
-      const position =
-        parentId !== null && sectionConfig
-          ? sectionConfig.positions[positionIndex] || {
-              x: sectionConfig.baseX,
-              y: 180 + positionIndex * 120,
-            }
-          : { x: 0, y: 0 };
+      const sectionConfig = sectionPositions[parentId];
+      const positionIndex = sectionCounters[parentId]++;
+      const position = sectionConfig.positions[positionIndex] || {
+        x: sectionConfig.baseX,
+        y: 100 + positionIndex * 120,
+      };
+
+      // // Ensure apiNode.data exists, fallback if undefined
+      // if (!apiNode.data) {
+      //   return null; // Skip nodes with no data
+      // }
+
+      // Provide a fallback for nodes without data¬
+      // const nodeData = apiNode.data || { label: 'Unknown' };
 
       return {
         id: apiNode.id,
         type: 'custom' as const,
         position,
-        data: { title: apiNode.data.label, subtext: `AIT ${apiNode.id}` },
-        parentId,
+        data: {
+          title: apiNode.data.label,
+          subtext: `AIT ${apiNode.id}`,
+        },
+        parentId: parentId,
         extent: 'parent' as const,
       };
     })
-    .filter((n: AppNode | null): n is AppNode => n !== null);
+    .filter((n): n is AppNode => n !== null);
 
-  const transformedEdges = apiData.edges.flatMap((apiEdge: any) => {
+  const transformedEdges = apiData.edges.flatMap((apiEdge) => {
     const { source, target } = apiEdge;
     if (Array.isArray(target)) {
-      return target.map((t: any) => ({
+      return target.map((t) => ({
         id: `${source}-${t}`,
         source,
         target: t,
@@ -63,7 +67,8 @@ export function transformApiData(
       return [
         {
           ...apiEdge,
-          id: `${source}-${target}`,
+          target: target,
+          // id: `${source}-${target}`,
           type: 'smoothstep',
           style: edgeStyle,
           markerStart: marker,
@@ -73,5 +78,8 @@ export function transformApiData(
     }
   });
 
-  return { transformedNodes, transformedEdges };
+  return {
+    nodes: [...backgroundNodes, ...transformedNodes],
+    edges: transformedEdges,
+  };
 }

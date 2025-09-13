@@ -1,4 +1,4 @@
-import type { SplunkDataItem } from '@/hooks/use-get-splunk';
+import { SplunkDataItem } from '@/domains/payment-health/types/splunk-data-item';
 
 export type TrendColor = 'green' | 'yellow' | 'red' | 'grey';
 

@@ -1,37 +1,45 @@
 'use client';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+
 import {
-  ReactFlow,
+  addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
   Background,
   Controls,
-  addEdge,
-  applyNodeChanges,
-  applyEdgeChanges,
-  type Node,
   type Edge,
-  type OnConnect,
+  EdgeChange,
   MarkerType,
-  ReactFlowProvider,
+  type Node,
+  NodeChange,
   type NodeTypes,
+  type OnConnect,
+  ReactFlow,
+  ReactFlowProvider,
   useStore,
 } from '@xyflow/react';
+
+import { toast } from 'sonner';
+
 import '@xyflow/react/dist/style.css';
-import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 import { useGetSplunkUsWires } from '@/domains/payment-health/hooks/use-get-splunk-us-wires/use-get-splunk-us-wires';
-import { initialNodes, initialEdges } from '../lib/flow-data';
-import CustomNode from './custom-node';
-import SectionBackgroundNode from './section-background-node';
-import { computeTrafficStatusColors } from '../lib/traffic-status-utils';
-import { Button } from './ui/button';
-import { Skeleton } from './ui/skeleton';
-import { TransactionDetailsTable } from './transaction-details-table';
-import { useTransactionSearchContext } from './transaction-search-provider';
-
-const nodeTypes: NodeTypes = {
-  custom: CustomNode,
-  background: SectionBackgroundNode,
-};
+import {
+  initialEdges,
+  initialNodes,
+} from '@/domains/payment-health/assets/flow-data-us-wires/flow-data-use-wires';
+import { computeTrafficStatusColors } from '@/domains/payment-health/utils/traffic-status-utils';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTransactionUsWiresSearchContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
+import { TransactionDetailsTableAgGrid } from '@/domains/payment-health/components/tables/transaction-details-table-ag-grid/transaction-details-table-ag-grid';
+import SplunkTableUsWires from '@/domains/payment-health/components/tables/splunk-table-us-wires/splunk-table-us-wires';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import CustomNodeUsWires from '@/domains/payment-health/components/flow/nodes/custom-nodes-us-wires/custom-node-us-wires';
+import SectionBackgroundNode from '@/domains/payment-health/components/flow/nodes/expandable-charts/section-background-node';
+import PaymentSearchBoxUsWires from '@/domains/payment-health/components/search/payment-search-box-us-wires/payment-search-box-us-wires';
+import { TransactionSearchResultsGrid } from '@/domains/payment-health/components/tables/transaction-search-results-grid/transaction-search-results-grid';
 
 const SECTION_IDS = [
   'bg-origination',
@@ -42,8 +50,18 @@ const SECTION_IDS = [
 const SECTION_WIDTH_PROPORTIONS = [0.2, 0.2, 0.25, 0.35];
 const GAP_WIDTH = 16;
 
-const Flow = () => {
-  const { showTableView } = useTransactionSearchContext();
+type ActionType = 'flow' | 'trend' | 'balanced';
+
+const Flow = ({
+  nodeTypes,
+  onShowSearchBox,
+}: {
+  nodeTypes: NodeTypes;
+  onShowSearchBox: () => void;
+}) => {
+  // const { hasRequiredRole } = useAuthzRules();
+
+  const { showTableView } = useTransactionUsWiresSearchContext();
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -55,8 +73,23 @@ const Flow = () => {
   );
   const [lastRefetch, setLastRefetch] = useState<Date | null>(null);
 
+  const [canvasHeight, setCanvasHeight] = useState<number>(500); // default height
+
+  // Table mode state
+  const [tableMode, setTableMode] = useState<{
+    show: boolean;
+    aitNum: string | null;
+    action: ActionType | null;
+  }>({
+    show: false,
+    aitNum: null,
+    action: null,
+  });
+
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
+
+  const isAuthorized = true; // hasRequiredRole();
 
   const {
     data: splunkData,
@@ -66,17 +99,24 @@ const Flow = () => {
     refetch,
     isFetching,
     isSuccess,
-  } = useGetSplunkUsWires();
+  } = useGetSplunkUsWires({
+    enabled: isAuthorized,
+  });
 
   const handleRefetch = async () => {
     try {
       await refetch();
       setLastRefetch(new Date());
+      toast.success('Data successfully refreshed!', {
+        description: 'The latest data has been loaded',
+        icon: <RefreshCw className="h-4 w-4 text-green-500" />,
+      });
     } catch (error) {
       console.error('Refetch failed:', error);
     }
   };
 
+  // Function to find connected nodes and edges
   const findConnections = useCallback(
     (nodeId: string) => {
       const connectedNodes = new Set<string>();
@@ -99,6 +139,7 @@ const Flow = () => {
     [edges]
   );
 
+  // Hanlde node click
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       if (isLoading || isFetching) return;
@@ -117,19 +158,31 @@ const Flow = () => {
     [selectedNodeId, findConnections, isLoading, isFetching]
   );
 
+  const handleActionClick = useCallback(
+    (aitNum: string, action: ActionType) => {
+      setTableMode({
+        show: true,
+        aitNum,
+        action,
+      });
+    },
+    []
+  );
+
+  // Get connected systems names for display
   const getConnectedSystemNames = useCallback(() => {
     if (!selectedNodeId) return [];
 
     return Array.from(connectedNodeIds)
       .map((nodeId) => {
         const node = nodes.find((n) => n.id === nodeId);
-        return node?.data?.title || nodeId;
+        return node?.data?.['title'] || nodeId;
       })
       .sort();
   }, [selectedNodeId, connectedNodeIds, nodes]);
 
   useEffect(() => {
-    if (width > 0 && height > 0) {
+    if (width > 0) {
       setNodes((currentNodes) => {
         const totalGapWidth = GAP_WIDTH * (SECTION_IDS.length - 1);
         const availableWidth = width - totalGapWidth;
@@ -139,6 +192,7 @@ const Flow = () => {
         const sectionDimensions: Record<string, { x: number; width: number }> =
           {};
 
+        // First pass: update background nodes and store their new dimensions
         for (let i = 0; i < SECTION_IDS.length; i++) {
           const sectionId = SECTION_IDS[i];
           const nodeIndex = newNodes.findIndex((n) => n.id === sectionId);
@@ -153,13 +207,14 @@ const Flow = () => {
               style: {
                 ...newNodes[nodeIndex].style,
                 width: `${sectionWidth}px`,
-                height: `${height}px`,
+                // height: `${height}px`,
               },
             };
             currentX += sectionWidth + GAP_WIDTH;
           }
         }
 
+        // second pass: update child nodes based on their parent's new dimensions
         for (let i = 0; i < newNodes.length; i++) {
           const node = newNodes[i];
           if (node.parentId && sectionDimensions[node.parentId]) {
@@ -195,15 +250,42 @@ const Flow = () => {
         return newNodes;
       });
     }
-  }, [width, height]);
+  }, [width]);
+
+  useEffect(() => {
+    // calculate the bounding box of all nodes and adjust the canvas height
+    const updateCanvasHeight = () => {
+      if (nodes.length === 0) return;
+
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      nodes.forEach((node) => {
+        const nodeY = node.position.y;
+        const nodeHeight = node.style?.height
+          ? parseFloat(node.style?.height as string)
+          : 0;
+
+        minY = Math.min(minY, nodeY);
+        maxY = Math.max(maxY, nodeY + nodeHeight);
+      });
+
+      const calculatedHeight = maxY - minY + 50;
+      setCanvasHeight(calculatedHeight);
+    };
+
+    updateCanvasHeight();
+  }, [nodes]);
 
   const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    (changes: NodeChange<Node>[]) =>
+      setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes]
   );
 
   const onEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    (changes: EdgeChange<Edge>[]) =>
+      setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges]
   );
 
@@ -236,6 +318,7 @@ const Flow = () => {
         isConnected,
         isDimmed,
         onClick: handleNodeClick,
+        onActionClick: handleActionClick,
       };
 
       if (node.parentId) {
@@ -251,7 +334,13 @@ const Flow = () => {
         data: nodeData,
       };
     });
-  }, [nodes, selectedNodeId, connectedNodeIds, handleNodeClick]);
+  }, [
+    nodes,
+    selectedNodeId,
+    connectedNodeIds,
+    handleNodeClick,
+    handleActionClick,
+  ]);
 
   const edgesForFlow = useMemo(() => {
     return edges.map((edge) => {
@@ -385,11 +474,30 @@ const Flow = () => {
   };
 
   if (showTableView) {
-    return <TransactionDetailsTable />;
+    return <TransactionDetailsTableAgGrid />;
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div
+      className="relative h-full w-full"
+      style={{ height: `${canvasHeight}px` }}
+    >
+      {/*If table mode is on, render the AG Grid and hide flow*/}
+      {tableMode.show && (
+        <SplunkTableUsWires
+          aitNum={tableMode.aitNum!}
+          action={tableMode.action!}
+          onBack={() => {
+            setTableMode({
+              show: false,
+              aitNum: null,
+              action: null,
+            });
+            onShowSearchBox();
+          }}
+        />
+      )}
+
       {/* Refresh Data Button - Icon only, docked top-right */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         {lastRefetch && !isFetching && (
@@ -436,7 +544,9 @@ const Flow = () => {
         <div className="absolute top-4 left-4 z-10 max-w-sm rounded-lg border bg-white p-4 shadow-lg">
           <h3 className="mb-2 text-sm font-semibold text-gray-800">
             Selected System:{' '}
-            {nodes.find((n) => n.id === selectedNodeId)?.data?.title}
+            {(nodes.find((n) => n.id === selectedNodeId)?.data?.[
+              'title'
+            ] as ReactNode) || 'Unknown'}
           </h3>
           <div className="space-y-2">
             <div>
@@ -449,7 +559,9 @@ const Flow = () => {
                     key={index}
                     className="mb-1 rounded bg-blue-50 px-2 py-1 text-xs text-gray-700"
                   >
-                    {systemName}
+                    {typeof systemName === 'string'
+                      ? systemName
+                      : JSON.stringify(systemName)}
                   </div>
                 ))}
               </div>
@@ -468,11 +580,52 @@ const Flow = () => {
   );
 };
 
-export function FlowDiagram() {
-  // Use the top-level QueryProvider; only keep ReactFlowProvider here
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 3,
+    },
+  },
+});
+
+export function FlowDiagramUsWires() {
+  const { showAmountSearchResults, amountSearchParams, hideAmountResults } =
+    useTransactionUsWiresSearchContext();
+
+  const [showSearchBox, setShowSearchBox] = useState(true);
+
+  const nodeTypes: NodeTypes = useMemo(
+    () => ({
+      custom: (props) => (
+        <CustomNodeUsWires
+          {...props}
+          onHideSearch={() => setShowSearchBox((prev) => !prev)}
+        />
+      ),
+      background: SectionBackgroundNode,
+    }),
+    []
+  );
+
   return (
-    <ReactFlowProvider>
-      <Flow />
-    </ReactFlowProvider>
+    <QueryClientProvider client={queryClient}>
+      <ReactFlowProvider>
+        {showSearchBox && <PaymentSearchBoxUsWires />}
+        {showAmountSearchResults && amountSearchParams ? (
+          <TransactionSearchResultsGrid
+            transactionAmount={amountSearchParams.amount}
+            dateStart={amountSearchParams.dateStart}
+            dateEnd={amountSearchParams.dateEnd}
+            onBack={hideAmountResults}
+          />
+        ) : (
+          <Flow
+            nodeTypes={nodeTypes}
+            onShowSearchBox={() => setShowSearchBox(true)}
+          />
+        )}
+      </ReactFlowProvider>
+    </QueryClientProvider>
   );
 }

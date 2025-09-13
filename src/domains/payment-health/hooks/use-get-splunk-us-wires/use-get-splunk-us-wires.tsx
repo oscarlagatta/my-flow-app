@@ -16,7 +16,12 @@ export interface SplunkDataItem {
   currenT_STD_VARIATION: string;
 }
 
-export function useGetSplunkUsWires() {
+interface UseGetSplunkUsWiresOptions {
+  enabled?: true;
+}
+
+export function useGetSplunkUsWires(options: UseGetSplunkUsWiresOptions) {
+  const { enabled } = options;
   const splunkData = useQuery({
     queryKey: ['splunk-data'],
     queryFn: async (): Promise<SplunkDataItem[]> => {
@@ -35,6 +40,7 @@ export function useGetSplunkUsWires() {
     gcTime: 10 * 60 * 1000, // 10 minutes (updated from deprecated cacheTime)
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    enabled,
   });
 
   return {

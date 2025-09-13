@@ -1,4 +1,4 @@
-import type { SplunkDataItem } from '@types/splunk-data-item';
+import type { SplunkDataItem } from '../types/splunk-data-item';
 
 export type TrafficStatusColor = 'green' | 'red' | 'grey';
 

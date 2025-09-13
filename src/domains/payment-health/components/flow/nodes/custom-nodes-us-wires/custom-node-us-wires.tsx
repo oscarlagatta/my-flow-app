@@ -1,253 +1,354 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { memo, useMemo, useState } from "react"
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react"
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card"
-import { useGetSplunk } from "../hooks/use-get-splunk"
-import { computeTrendColors, getTrendColorClass, type TrendColor } from "../lib/trend-color-utils"
+import { memo, useMemo, useState } from 'react';
+import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+
+import {
+  computeTrendColors,
+  getTrendColorClass,
+  type TrendColor,
+} from '../../../../utils/trend-color-utils';
+
 import {
   computeTrafficStatusColors,
   getTrafficStatusColorClass,
   type TrafficStatusColor,
-} from "../lib/traffic-status-utils"
-import { LoadingButton } from "./loading-button"
-import { CardLoadingSkeleton } from "./loading-skeleton"
-import { useTransactionSearchContext } from "./transaction-search-provider"
+} from '../../../../utils/traffic-status-utils';
+import { LoadingButton } from '../../../loading/loading-button';
+import { CardLoadingSkeleton } from '../../../loading/loading-skeleton';
+import { useGetSplunkUsWires } from '@/domains/payment-health/hooks/use-get-splunk-us-wires/use-get-splunk-us-wires';
+import { useTransactionUsWiresSearchContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
+
+type ActionType = 'flow' | 'trend' | 'balanced';
 
 type CustomNodeData = {
-  title: string
-  subtext: string
-  size: "small" | "medium" | "large"
-  isSelected?: boolean
-  isConnected?: boolean
-  isDimmed?: boolean
-  onClick?: (nodeId: string) => void
-}
+  title: string;
+  subtext: string;
+  size: 'small' | 'medium' | 'large';
+  isSelected?: boolean;
+  isConnected?: boolean;
+  isDimmed?: boolean;
+  onClick?: (nodeId: string) => void;
+  onActionClick?: (aitNum: string, action: ActionType) => void;
+};
 
-type CustomNodeType = Node<CustomNodeData>
+type CustomNodeType = Node<CustomNodeData>;
 
-const CustomNode = ({ data, id }: NodeProps<CustomNodeType>) => {
-  const { data: splunkData, isLoading, isError, isFetching } = useGetSplunk()
+const CustomNodeUsWires = ({
+  data,
+  id,
+  onHideSearch,
+}: NodeProps<CustomNodeType> & { onHideSearch: () => void }) => {
+  // const { hasRequiredRole } = useAuthzRules();
+  const isAuthorized = true; // hasRequiredRole();
+
+  // parameter enabled: isAuthorized
+  const {
+    data: splunkData,
+    isLoading,
+    isError,
+    isFetching,
+  } = useGetSplunkUsWires({
+    enabled: isAuthorized,
+  });
+
   const {
     active: txActive,
     isFetching: txFetching,
     matchedAitIds,
     showTable,
-    isTableLoading,
-  } = useTransactionSearchContext()
+  } = useTransactionUsWiresSearchContext();
 
   // Extract AIT number from the node data subtext (format: "AIT {number}")
   const aitNum = useMemo(() => {
-    const match = data.subtext.match(/AIT (\d+)/)
-    return match ? match[1] : null
-  }, [data.subtext, id])
+    const match = data.subtext.match(/AIT (\d+)/);
+    return match ? match[1] : null;
+  }, [data.subtext, id]);
 
   // Compute trend colors from Splunk data
   const trendColorMapping = useMemo(() => {
-    if (!splunkData) return {}
-    return computeTrendColors(splunkData)
-  }, [splunkData])
+    if (!splunkData) return {};
+    return computeTrendColors(splunkData);
+  }, [splunkData]);
 
   // Compute traffic status colors from Splunk data
   const trafficStatusMapping = useMemo(() => {
-    if (!splunkData) return {}
-    return computeTrafficStatusColors(splunkData)
-  }, [splunkData])
+    if (!splunkData) return {};
+    return computeTrafficStatusColors(splunkData);
+  }, [splunkData]);
 
   // Get the trend color for this specific node
-  const trendColor: TrendColor = aitNum && trendColorMapping[aitNum] ? trendColorMapping[aitNum] : "grey"
+  const trendColor: TrendColor =
+    aitNum && trendColorMapping[aitNum] ? trendColorMapping[aitNum] : 'grey';
 
   // Get the traffic status color for this specific node
   const trafficStatusColor: TrafficStatusColor =
-    aitNum && trafficStatusMapping[aitNum] ? trafficStatusMapping[aitNum] : "grey"
+    aitNum && trafficStatusMapping[aitNum]
+      ? trafficStatusMapping[aitNum]
+      : 'grey';
 
-  const trendColorClass = getTrendColorClass(trendColor)
-  const trafficStatusColorClass = getTrafficStatusColorClass(trafficStatusColor)
+  const trendColorClass = getTrendColorClass(trendColor);
+  const trafficStatusColorClass =
+    getTrafficStatusColorClass(trafficStatusColor);
 
   const handleClick = () => {
     if (data.onClick && id && !isLoading) {
-      data.onClick(id)
+      data.onClick(id);
     }
-  }
+  };
 
-  const [isDetailsLoading, setIsDetailsLoading] = useState(false)
+  const triggerAction = (action: ActionType) => {
+    if (!isLoading && !isFetching && aitNum && data.onActionClick) {
+      data.onActionClick(aitNum, action);
+    }
+    onHideSearch(); // Hide search when an action is triggered.
+  };
+
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
 
   const handleDetailsClick = async (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent node selection
+    e.stopPropagation(); // Prevent node selection
+
     if (aitNum && !isDetailsLoading) {
-      setIsDetailsLoading(true)
+      setIsDetailsLoading(true);
       try {
-        await showTable(aitNum)
+        await showTable(aitNum);
       } finally {
         setTimeout(() => {
-          setIsDetailsLoading(false)
-        }, 500)
+          setIsDetailsLoading(false);
+        }, 500);
       }
     }
-  }
+  };
 
   // Determine styling based on selection state and loading
   const getCardClassName = () => {
     let baseClass =
-      "w-48 min-w-48 max-w-48 sm:w-52 sm:min-w-52 sm:max-w-52 md:w-56 md:min-w-56 md:max-w-56 border border-white/30 shadow-xl backdrop-blur-md cursor-pointer transition-all duration-300 rounded-xl"
+      'border-2 border-[rgb(10, 49,97)] shadow-md cursor-pointer transition-all duration-200';
 
     // Loading state styling with glassmorphism
     if (isLoading || isFetching) {
-      baseClass += " bg-white/10 backdrop-blur-sm"
+      baseClass += ' bg-gray-50';
     } else if (isError) {
-      baseClass += " bg-red-500/10 border-red-300/30 backdrop-blur-md"
+      baseClass += ' bg-red-50 border-red-200';
     } else {
-      baseClass += " bg-white/15 backdrop-blur-md"
+      baseClass += ' bg-gray';
     }
 
     if (data.isSelected && !isLoading) {
-      baseClass += " ring-2 ring-blue-400/50 shadow-2xl scale-105 bg-white/25"
+      baseClass += ' ring-2 ring-blue-700 shadow-lg scale-105';
     } else if (data.isConnected && !isLoading) {
-      baseClass += " ring-2 ring-blue-300/40 shadow-xl bg-white/20"
+      baseClass += ' ring-2 ring-blue-300 shadow-lg';
     } else if (data.isDimmed) {
-      baseClass += " opacity-40"
+      baseClass += ' opacity-40';
     }
 
-    return baseClass
-  }
+    return baseClass;
+  };
 
   // Show loading skeleton during initial load of Splunk (baseline) data
   if (isLoading) {
+    return <CardLoadingSkeleton className="w-full" />;
+  }
+
+  if (isError) {
     return (
-      <CardLoadingSkeleton className="w-48 min-w-48 max-w-48 sm:w-52 sm:min-w-52 sm:max-w-52 md:w-56 md:min-w-56 md:max-w-56" />
-    )
+      <div className="text-red-500">
+        Failed to load data. Please try again later.
+      </div>
+    );
   }
 
   // Three-phase UI logic for buttons:
   // 1) Default mode (no txActive): show Flow/Trend/Balanced
   // 2) Loading mode (txActive && txFetching): show Summary/Details (loading) on all nodes to indicate a fetch is happening
   // 3) Results mode (txActive && !txFetching): show Summary/Details only on AITs present in matchedAitIds, show NO buttons otherwise
-  const inDefaultMode = !txActive
-  const inLoadingMode = txActive && txFetching
-  const inResultsMode = txActive && !txFetching
-  const isMatched = !!aitNum && matchedAitIds.has(aitNum)
+  const inDefaultMode = !txActive;
+  const inLoadingMode = txActive && txFetching;
+  const inResultsMode = txActive && !txFetching;
+  const isMatched = !!aitNum && matchedAitIds.has(aitNum);
 
   return (
-    <Card className={getCardClassName()} onClick={handleClick} data-testid={`custom-node-${id}`}>
+    <Card
+      className={getCardClassName()}
+      onClick={handleClick}
+      data-testid={`custom-node-${id}`}
+    >
       <Handle
         type="target"
         position={Position.Left}
-        className="!bg-white/60 !backdrop-blur-sm !border !border-white/30 w-2 h-2"
+        className="h-2 w-2 !bg-gray-400"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!bg-white/60 !backdrop-blur-sm !border !border-white/30 w-2 h-2"
+        className="h-2 w-2 !bg-gray-400"
       />
       <Handle
         type="source"
         position={Position.Top}
-        className="!bg-white/60 !backdrop-blur-sm !border !border-white/30 w-2 h-2"
+        className="h-2 w-2 !bg-gray-400"
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-white/60 !backdrop-blur-sm !border !border-white/30 w-2 h-2"
+        className="h-2 w-2 !bg-gray-400"
       />
       <CardHeader className="p-2">
-        <CardTitle className="text-xs font-bold whitespace-nowrap text-center truncate text-gray-800 drop-shadow-sm">
+        <CardTitle className="text-center text-xs font-bold whitespace-nowrap">
           {data.title}
         </CardTitle>
-        <p className="text-[10px] text-gray-600 text-center truncate drop-shadow-sm" data-testid="node-subtext">
+        <p className="text-muted-foreground text-center text-[10px]">
           {data.subtext}
         </p>
       </CardHeader>
       <CardContent className="p-2 pt-0">
-        <div className="flex flex-wrap justify-center gap-1 transition-all duration-200">
-          {inDefaultMode && (
+        <div className="flex space-x-1 transition-all duration-200">
+          {!isAuthorized ? (
             <>
               <LoadingButton
-                isLoading={isFetching}
+                isLoading={inLoadingMode}
                 loadingText="..."
                 variant="outline"
-                className={`h-6 px-2 text-[10px] shadow-sm text-white flex-1 min-w-0 backdrop-blur-sm border-white/20 ${
-                  isError ? "bg-gray-400/80" : trafficStatusColorClass
-                }`}
-              >
-                Flow
-              </LoadingButton>
-              <LoadingButton
-                isLoading={isFetching}
-                loadingText="..."
-                variant="outline"
-                className={`h-6 px-2 text-[10px] shadow-sm text-white flex-1 min-w-0 backdrop-blur-sm border-white/20 ${isError ? "bg-gray-400/80" : trendColorClass}`}
-              >
-                Trend
-              </LoadingButton>
-              <LoadingButton
-                isLoading={isFetching}
-                loadingText="..."
-                variant="outline"
-                className="h-6 px-2 text-[10px] shadow-sm bg-white/20 backdrop-blur-sm border-white/30 text-gray-700 hover:bg-white/30 flex-1 min-w-0"
-              >
-                Balanced
-              </LoadingButton>
-            </>
-          )}
-
-          {inLoadingMode && (
-            <>
-              <LoadingButton
-                isLoading={true}
-                loadingText="..."
-                variant="outline"
-                className="h-6 px-2 text-[10px] shadow-sm bg-blue-600/80 backdrop-blur-sm text-white hover:bg-blue-700/80 hover:text-white border-blue-400/30 flex-1 min-w-0"
-              >
-                Summary
-              </LoadingButton>
-              <LoadingButton
-                isLoading={true}
-                loadingText="..."
-                variant="outline"
-                className="h-6 px-2 text-[10px] shadow-sm bg-blue-600/80 backdrop-blur-sm text-white hover:bg-blue-700/80 hover:text-white border-blue-400/30 flex-1 min-w-0"
-              >
-                Details
-              </LoadingButton>
-            </>
-          )}
-
-          {inResultsMode && (
-            <>
-              <LoadingButton
-                isLoading={false}
-                loadingText="..."
-                variant="outline"
-                className={`h-6 px-2 text-[10px] shadow-sm flex-1 min-w-0 backdrop-blur-sm ${
-                  isMatched
-                    ? "bg-blue-600/80 text-white hover:bg-blue-700/80 hover:text-white border-blue-400/30"
-                    : "bg-gray-300/60 text-gray-500 border-gray-400/30 cursor-not-allowed backdrop-blur-sm"
+                className={`h-6 min-w-0 flex-1 px-2 text-[10px] shadow-sm ${
+                  inResultsMode && isMatched
+                    ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
+                    : inResultsMode && !isMatched
+                      ? 'cursor-not-allowed border-gray-300 text-gray-500'
+                      : 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
                 }`}
                 disabled={!isMatched}
               >
                 Summary
               </LoadingButton>
               <LoadingButton
-                isLoading={isMatched && isDetailsLoading}
-                loadingText="Loading..."
+                isLoading={true}
+                loadingText="..."
                 variant="outline"
-                className={`h-6 px-2 text-[10px] shadow-sm flex-1 min-w-0 backdrop-blur-sm ${
-                  isMatched
-                    ? "bg-blue-600/80 text-white hover:bg-blue-700/80 hover:text-white border-blue-400/30"
-                    : "bg-gray-300/60 text-gray-500 border-gray-400/30 cursor-not-allowed backdrop-blur-sm"
+                className={`h-6 min-w-0 flex-1 px-2 text-[10px] shadow-sm ${
+                  inResultsMode && isMatched
+                    ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
+                    : inResultsMode && !isMatched
+                      ? 'cursor-not-allowed border-gray-300 text-gray-500'
+                      : 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
                 }`}
-                onClick={isMatched ? handleDetailsClick : undefined}
+                onClick={
+                  inResultsMode && isMatched ? handleDetailsClick : undefined
+                }
                 disabled={!isMatched || isDetailsLoading}
               >
                 Details
               </LoadingButton>
             </>
+          ) : (
+            <>
+              {inDefaultMode && (
+                <>
+                  <LoadingButton
+                    isLoading={isFetching}
+                    loadingText="..."
+                    variant="outline"
+                    className={`h-6 min-w-0 flex-1 px-2 text-[10px] text-white shadow-sm ${
+                      isError ? 'bg-gray-400' : trafficStatusColorClass
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerAction('flow');
+                    }}
+                    disabled={trafficStatusColorClass === 'bg-gray-400'}
+                  >
+                    Flow
+                  </LoadingButton>
+                  <LoadingButton
+                    isLoading={isFetching}
+                    loadingText="..."
+                    variant="outline"
+                    className={`h-6 min-w-0 flex-1 px-2 text-[10px] text-white shadow-sm ${isError ? 'bg-gray-400' : trendColorClass}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerAction('trend');
+                    }}
+                    disabled={trendColorClass === 'bg-gray-400'}
+                  >
+                    Trend
+                  </LoadingButton>
+                  <LoadingButton
+                    isLoading={isFetching}
+                    loadingText="..."
+                    variant="outline"
+                    className="h-6 min-w-0 flex-1 px-2 text-[10px] shadow-sm"
+                    disabled={trendColorClass === 'bg-gray-400'}
+                  >
+                    Balanced
+                  </LoadingButton>
+                </>
+              )}
+
+              {inLoadingMode && (
+                <>
+                  <LoadingButton
+                    isLoading={true}
+                    loadingText="..."
+                    variant="outline"
+                    aria-label="Trigger Summary Action"
+                    className="flex h-6 flex-1 items-center justify-center border-blue-600 bg-blue-600 px-2 text-[10px] text-white shadow-sm hover:bg-blue-700 hover:text-white"
+                  >
+                    Summary
+                  </LoadingButton>
+                  <LoadingButton
+                    isLoading={true}
+                    loadingText="..."
+                    variant="outline"
+                    aria-label="Trigger Details Action"
+                    className="flex h-6 flex-1 items-center justify-center border-blue-600 bg-blue-600 px-2 text-[10px] text-white shadow-sm hover:bg-blue-700 hover:text-white"
+                  >
+                    Details
+                  </LoadingButton>
+                </>
+              )}
+
+              {inResultsMode && (
+                <>
+                  <LoadingButton
+                    isLoading={false}
+                    loadingText="..."
+                    variant="outline"
+                    aria-label="Trigger Summary Action"
+                    className={`h-6 min-w-0 flex-1 px-2 text-[10px] shadow-sm ${
+                      isMatched
+                        ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
+                        : 'cursor-not-allowed border-gray-300 bg-gray-300 text-gray-500'
+                    }`}
+                    disabled={!isMatched}
+                  >
+                    Summary
+                  </LoadingButton>
+                  <LoadingButton
+                    isLoading={false}
+                    loadingText="..."
+                    variant="outline"
+                    aria-label="Trigger Summary Action"
+                    className={`h-6 min-w-0 flex-1 px-2 text-[10px] shadow-sm ${
+                      isMatched
+                        ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
+                        : 'cursor-not-allowed border-gray-300 bg-gray-300 text-gray-500'
+                    }`}
+                    onClick={isMatched ? handleDetailsClick : undefined}
+                    disabled={!isMatched || isDetailsLoading}
+                  >
+                    Details
+                  </LoadingButton>
+                </>
+              )}
+            </>
           )}
         </div>
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default memo(CustomNode)
+export default memo(CustomNodeUsWires);

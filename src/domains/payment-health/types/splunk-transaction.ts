@@ -1,3 +1,5 @@
+export type SplunkTransactionDetails = SplunkTransactionDetail[];
+
 export interface SplunkTransactionDetail {
   source: string;
   sourceType: string;
@@ -10,11 +12,11 @@ export interface Raw {
   WTX_GFD_ID: string;
   SMH_SOURCE: string;
   SMH_DEST: string;
-  RQQ_TRAN_DATE: string;
-  RQQ_TRAN_TIME: string;
-  RQQ_TRAN_DATE_ALT: string;
-  RQQ_TRAN_TIME_ALT: string;
-  XQQ_CUST_CNTRY_CODE: string;
+  RQO_TRAN_DATE: string;
+  RQO_TRAN_TIME: string;
+  RQO_TRAN_DATE_ALT: string;
+  RQO_TRAN_TIME_ALT: string;
+  XQO_CUST_CNTRY_CODE: string;
   AQQ_CUST_A_NUM: string;
   AQQ_BILLING_CURR_CODE: string;
   TBT_TRAN_TYPE: string;

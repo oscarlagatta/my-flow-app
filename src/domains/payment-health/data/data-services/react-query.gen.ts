@@ -9,7 +9,7 @@ import {
   getApiV2SplunkDataGetSplunkData,
   getApiV2SplunkDataGetTransactionDetailsData,
 } from '@/domains/payment-health/data/data-services/services.gen';
-import { client } from '@/lib/api/client.gen';
+import { client } from './client';
 
 // Create extended options interface with client property
 interface ExtendedOptions extends Options {

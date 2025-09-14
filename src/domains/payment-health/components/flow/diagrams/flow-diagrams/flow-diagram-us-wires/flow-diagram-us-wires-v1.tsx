@@ -1,14 +1,7 @@
 // checked
 'use client';
-import {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-} from 'react';
-// Remove this import: import Draggable from 'react-draggable';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import Draggable from 'react-draggable';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   addEdge,
@@ -32,8 +25,10 @@ import {
 import '@xyflow/react/dist/style.css';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+
 import {
   initialEdges,
   initialNodes,
@@ -68,79 +63,6 @@ const GAP_WIDTH = 16;
 
 type ActionType = 'flow' | 'trend' | 'balanced';
 
-// Custom Draggable Component that works with React 19
-const DraggablePanel = ({
-  children,
-  onStart,
-  onStop,
-}: {
-  children: ReactNode;
-  onStart?: () => void;
-  onStop?: () => void;
-}) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const elementRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      });
-      onStart?.();
-    },
-    [position, onStart]
-  );
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isDragging) return;
-
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    },
-    [isDragging, dragStart]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false);
-      onStop?.();
-    }
-  }, [isDragging, onStop]);
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
-  return (
-    <div
-      ref={elementRef}
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px)`,
-        cursor: isDragging ? 'grabbing' : 'grab',
-      }}
-      onMouseDown={handleMouseDown}
-    >
-      {children}
-    </div>
-  );
-};
-
 const Flow = ({
   nodeTypes,
   onShowSearchBox,
@@ -149,6 +71,7 @@ const Flow = ({
   onShowSearchBox: () => void;
 }) => {
   // const { hasRequiredRole } = useAuthzRules();
+
   const { showTableView } = useTransactionSearchUsWiresContext();
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
@@ -159,8 +82,11 @@ const Flow = ({
   const [connectedEdgeIds, setConnectedEdgeIds] = useState<Set<string>>(
     new Set()
   );
+
   const [lastRefetch, setLastRefetch] = useState<Date | null>(null);
+
   const [canvasHeight, setCanvasHeight] = useState<number>(500); // default height
+
   // Table mode state
   const [tableMode, setTableMode] = useState<{
     show: boolean;
@@ -171,8 +97,11 @@ const Flow = ({
     aitNum: null,
     action: null,
   });
+
   const width = useStore((state) => state.width);
+
   const isAuthorized = true; // hasRequiredRole();
+
   const {
     data: splunkData,
     isLoading,
@@ -181,8 +110,9 @@ const Flow = ({
     isFetching,
     isSuccess,
   } = useGetSplunkUsWires({
-    enabled: isAuthorized,
+    enabled: false,
   });
+
   const handleRefetch = async () => {
     try {
       await refetch();
@@ -198,11 +128,13 @@ const Flow = ({
       });
     }
   };
+
   // Function to find connected nodes and edges
   const findConnections = useCallback(
     (nodeId: string) => {
       const connectedNodes = new Set<string>();
       const connectedEdges = new Set<string>();
+
       edges.forEach((edge) => {
         if (edge.source === nodeId || edge.target === nodeId) {
           connectedEdges.add(edge.id);
@@ -214,14 +146,17 @@ const Flow = ({
           }
         }
       });
+
       return { connectedNodes, connectedEdges };
     },
     [edges]
   );
+
   // Hanlde node click
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       if (isLoading || isFetching) return;
+
       if (selectedNodeId === nodeId) {
         // clicking the same node deselects it
         setSelectedNodeId(null);
@@ -237,6 +172,7 @@ const Flow = ({
     },
     [selectedNodeId, findConnections, isLoading, isFetching]
   );
+
   const handleActionClick = useCallback(
     (aitNum: string, action: ActionType) => {
       setTableMode({
@@ -247,11 +183,13 @@ const Flow = ({
     },
     []
   );
+
   // Get connected systems names for display
   const getConnectedSystemNames = useCallback(() => {
     if (!selectedNodeId) {
       return [];
     }
+
     return Array.from(connectedNodeIds)
       .map((nodeId) => {
         const node = nodes.find((n) => n.id === nodeId);
@@ -259,22 +197,27 @@ const Flow = ({
       })
       .sort();
   }, [selectedNodeId, connectedNodeIds, nodes]);
+
   useEffect(() => {
     if (width > 0) {
       setNodes((currentNodes) => {
         const totalGapWidth = GAP_WIDTH * (SECTION_IDS.length - 1);
         const availableWidth = width - totalGapWidth;
         let currentX = 0;
+
         const newNodes = [...currentNodes];
         const sectionDimensions: Record<string, { x: number; width: number }> =
           {};
+
         // First pass: update background nodes and store their new dimensions
         for (let i = 0; i < SECTION_IDS.length; i++) {
           const sectionId = SECTION_IDS[i];
           const nodeIndex = newNodes.findIndex((n) => n.id === sectionId);
+
           if (nodeIndex !== -1) {
             const sectionWidth = availableWidth * SECTION_WIDTH_PROPORTIONS[i];
             sectionDimensions[sectionId] = { x: currentX, width: sectionWidth };
+
             newNodes[nodeIndex] = {
               ...newNodes[nodeIndex],
               position: { x: currentX, y: 0 },
@@ -286,25 +229,30 @@ const Flow = ({
             currentX += sectionWidth + GAP_WIDTH;
           }
         }
+
         // second pass: update child nodes based on their parent's new dimensions
         for (let i = 0; i < newNodes.length; i++) {
           const node = newNodes[i];
           if (node.parentId && sectionDimensions[node.parentId]) {
             const parentDimensions = sectionDimensions[node.parentId];
+
             const originalNode = initialNodes.find((n) => n.id === node.id);
             const originalParent = initialNodes.find(
               (n) => n.id === node.parentId
             );
+
             if (originalNode && originalParent && originalParent.style?.width) {
               const originalParentWidth = Number.parseFloat(
                 originalParent.style.width as string
               );
               const originalRelativeXOffset =
                 originalNode.position.x - originalParent.position.x;
+
               const newAbsoluteX =
                 parentDimensions.x +
                 (originalRelativeXOffset / originalParentWidth) *
                   parentDimensions.width;
+
               newNodes[i] = {
                 ...node,
                 position: {
@@ -319,35 +267,44 @@ const Flow = ({
       });
     }
   }, [width]);
+
   useEffect(() => {
     // calculate the bounding box of all nodes and adjust the canvas height
     const updateCanvasHeight = () => {
       if (nodes.length === 0) return;
+
       let minY = Infinity;
       let maxY = -Infinity;
+
       nodes.forEach((node) => {
         const nodeY = node.position.y;
         const nodeHeight = node.style?.height
           ? parseFloat(node.style?.height as string)
           : 0;
+
         minY = Math.min(minY, nodeY);
         maxY = Math.max(maxY, nodeY + nodeHeight);
       });
+
       const calculatedHeight = maxY - minY + 50;
       setCanvasHeight(calculatedHeight);
     };
+
     updateCanvasHeight();
   }, [nodes]);
+
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange<Node>[]) =>
       setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes]
   );
+
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes: EdgeChange<Edge>[]) =>
       setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges]
   );
+
   const onConnect: OnConnect = useCallback(
     (connection) =>
       setEdges((eds) =>
@@ -364,11 +321,13 @@ const Flow = ({
       ),
     [setEdges]
   );
+
   const nodesForFlow = useMemo(() => {
     return nodes.map((node) => {
       const isSelected = selectedNodeId === node.id;
       const isConnected = connectedNodeIds.has(node.id);
       const isDimmed = selectedNodeId && !isSelected && !isConnected;
+
       const nodeData = {
         ...node.data,
         isSelected,
@@ -377,6 +336,7 @@ const Flow = ({
         onClick: handleNodeClick,
         onActionClick: handleActionClick,
       };
+
       if (node.parentId) {
         const { parentId, ...rest } = node;
         return {
@@ -397,10 +357,12 @@ const Flow = ({
     handleNodeClick,
     handleActionClick,
   ]);
+
   const edgesForFlow = useMemo(() => {
     return edges.map((edge) => {
       const isConnected = connectedEdgeIds.has(edge.id);
       const isDimmed = selectedNodeId && !isConnected;
+
       return {
         ...edge,
         style: {
@@ -413,6 +375,7 @@ const Flow = ({
       };
     });
   }, [edges, connectedEdgeIds, selectedNodeId]);
+
   const renderDataPanel = () => {
     if (isLoading) {
       return (
@@ -432,6 +395,7 @@ const Flow = ({
         </div>
       );
     }
+
     if (isError) {
       return (
         <div className="space-y-3">
@@ -461,6 +425,7 @@ const Flow = ({
         </div>
       );
     }
+
     if (isSuccess && splunkData) {
       return (
         <div className="space-y-2">
@@ -517,11 +482,14 @@ const Flow = ({
         </div>
       );
     }
+
     return null;
   };
+
   if (showTableView) {
     return <TransactionDetailsTableAgGrid />;
   }
+
   return (
     <div
       className="relative h-full w-full"
@@ -582,14 +550,25 @@ const Flow = ({
             <Controls />
             <Background gap={16} size={1} />
           </ReactFlow>
+
           {/* Connected System Panel */}
           {selectedNodeId && (
-            <DraggablePanel
+            <Draggable
               onStart={() => {
-                // Optional: Add any start drag logic
+                const panel = document.getElementById(
+                  'connected-systems-panel'
+                );
+                if (panel) {
+                  panel.style.cursor = 'grabbing';
+                }
               }}
               onStop={() => {
-                // Optional: Add any stop drag logic
+                const panel = document.getElementById(
+                  'connected-systems-panel'
+                );
+                if (panel) {
+                  panel.style.cursor = 'grab';
+                }
               }}
             >
               <div className="absolute top-4 left-4 z-10 max-w-sm rounded-lg border bg-white p-4 shadow-lg">
@@ -626,13 +605,14 @@ const Flow = ({
                   </button>
                 </div>
               </div>
-            </DraggablePanel>
+            </Draggable>
           )}
         </>
       )}
     </div>
   );
 };
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -641,10 +621,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
 export function FlowDiagramUsWires() {
   const { showAmountSearchResults, amountSearchParams, hideAmountResults } =
     useTransactionSearchUsWiresContext();
   const [showSearchBox, setShowSearchBox] = useState(true);
+
   const nodeTypes: NodeTypes = useMemo(
     () => ({
       custom: (props) => (
@@ -657,6 +639,7 @@ export function FlowDiagramUsWires() {
     }),
     []
   );
+
   return (
     <QueryClientProvider client={queryClient}>
       <ReactFlowProvider>

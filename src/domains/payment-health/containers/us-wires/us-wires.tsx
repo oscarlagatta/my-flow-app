@@ -4,7 +4,7 @@ import { FlowDiagramUsWires } from '@/domains/payment-health/components/flow/dia
 function UsWires() {
   return (
     <TransactionUsWiresSearchProvider>
-      <div className="h-full w-full space-y-6 pt-0 pl-4 shadow-sm">
+      <div className="flow-compact flex h-full min-h-0 w-full flex-col space-y-6 pt-0 pl-4 shadow-sm">
         <FlowDiagramUsWires />
       </div>
     </TransactionUsWiresSearchProvider>

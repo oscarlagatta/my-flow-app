@@ -14,7 +14,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const ID_REGEX = /^[a-z0-9]{6,}$/;
+// Make regex case-insensitive to match both upper/lower case
+const ID_REGEX = /^[a-z0-9]{6,}$/i;
 
 interface SerachCriteria {
   transactionId: string;
@@ -37,7 +38,8 @@ function PaymentSearchBoxBase({
   title,
   description,
 }: PaymentSearchBoxBaseProps) {
-  const [active, setActive] = useState<'track' | 'observability'>('track');
+  // Removed unused "active" state
+
   const [searchCriteria, setSearchCriteria] = useState<SerachCriteria>({
     transactionId: '',
     transactionAmount: '',
@@ -54,22 +56,25 @@ function PaymentSearchBoxBase({
     }));
   };
 
-  const handleKeyPress = (e: KeyboardEvent) => {
+  // Use onKeyDown in React 19 instead of deprecated onKeyPress
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && hasValidSearch && !isSearching) {
       handleSearch();
     }
   };
 
   const validId = useMemo(
-    () =>
-      ID_REGEX.test((searchCriteria.transactionId || '').trim().toUpperCase()),
+    () => ID_REGEX.test((searchCriteria.transactionId || '').trim()),
     [searchCriteria.transactionId]
   );
 
   const hasValidSearch = useMemo(() => {
     const hasId = validId;
     const hasAmount = searchCriteria.transactionAmount.trim() !== '';
-    const hasDateRange = searchCriteria.dateStart || searchCriteria.dateEnd;
+    const hasDateRange = Boolean(
+      (searchCriteria.dateStart || '').trim() ||
+        (searchCriteria.dateEnd || '').trim()
+    );
     return hasId || hasAmount || hasDateRange;
   }, [
     validId,
@@ -115,7 +120,7 @@ function PaymentSearchBoxBase({
       <CardContent>
         <div className="flex max-w-full flex-wrap items-center gap-3">
           {/*Transaction ID*/}
-          <div className="lg:w:72 grid w-56 shrink-0 items-center gap-1.5 md:w-64">
+          <div className="grid w-56 shrink-0 items-center gap-1.5 md:w-64 lg:w-72">
             <Label htmlFor="transaction-id">Transaction ID</Label>
             <Input
               id="transaction-id"
@@ -125,16 +130,14 @@ function PaymentSearchBoxBase({
               onChange={(e) =>
                 handleInputChange('transactionId', e.target.value)
               }
-              onKeyPress={handleKeyPress}
-              disabled={
-                isSearching || searchCriteria.transactionId.trim() !== ''
-              }
+              onKeyDown={handleKeyDown}
+              disabled={isSearching}
             />
             <div className="h-4" />
           </div>
 
           {/*Amount*/}
-          <div className="lg:w:72 grid w-56 shrink-0 items-center gap-1.5 md:w-64">
+          <div className="grid w-56 shrink-0 items-center gap-1.5 md:w-64 lg:w-72">
             <Label htmlFor="transaction-amount">Transaction Amount</Label>
             <Input
               id="transaction-amount"
@@ -144,16 +147,14 @@ function PaymentSearchBoxBase({
               onChange={(e) =>
                 handleInputChange('transactionAmount', e.target.value)
               }
-              onKeyPress={handleKeyPress}
-              disabled={
-                isSearching || searchCriteria.transactionAmount.trim() !== ''
-              }
+              onKeyDown={handleKeyDown}
+              disabled={isSearching}
             />
             <div className="h-4" />
           </div>
 
           {/*Date Start*/}
-          <div className="lg:w:72 grid w-56 shrink-0 items-center gap-1.5 md:w-64">
+          <div className="grid w-56 shrink-0 items-center gap-1.5 md:w-64 lg:w-72">
             <Label htmlFor="date-start">Date Start</Label>
             <Input
               id="date-start"
@@ -161,14 +162,14 @@ function PaymentSearchBoxBase({
               placeholder="Enter date start"
               value={searchCriteria.dateStart}
               onChange={(e) => handleInputChange('dateStart', e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               disabled={isSearching}
             />
             <div className="h-4" />
           </div>
 
           {/*Date End*/}
-          <div className="lg:w:72 grid w-56 shrink-0 items-center gap-1.5 md:w-64">
+          <div className="grid w-56 shrink-0 items-center gap-1.5 md:w-64 lg:w-72">
             <Label htmlFor="date-end">Date End</Label>
             <Input
               id="date-end"
@@ -176,7 +177,7 @@ function PaymentSearchBoxBase({
               placeholder="Enter date end"
               value={searchCriteria.dateEnd}
               onChange={(e) => handleInputChange('dateEnd', e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               disabled={isSearching}
             />
             <div className="h-4" />

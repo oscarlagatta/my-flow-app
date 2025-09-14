@@ -37,7 +37,6 @@ type ActionType = 'flow' | 'trend' | 'balanced';
 type CustomNodeData = {
   title: string;
   subtext: string;
-  size: 'small' | 'medium' | 'large';
   isSelected?: boolean;
   isConnected?: boolean;
   isDimmed?: boolean;
@@ -76,7 +75,7 @@ const CustomNodeUsWires = ({
   const aitNum = useMemo(() => {
     const match = data.subtext.match(/AIT (\d+)/);
     return match ? match[1] : null;
-  }, [data.subtext, id]);
+  }, [data.subtext]);
 
   // Compute trend colors from Splunk data
   const trendColorMapping = useMemo(() => {
@@ -150,7 +149,7 @@ const CustomNodeUsWires = ({
     } else if (isError) {
       baseClass += ' bg-red-50 border-red-200';
     } else {
-      baseClass += ' bg-gray';
+      baseClass += ' bg-white';
     }
 
     if (data.isSelected && !isLoading) {
@@ -189,7 +188,7 @@ const CustomNodeUsWires = ({
   return (
     <>
       <Card
-        className={getCardClassName()}
+        className={`${getCardClassName()} h-[100px]`} // fixed height
         onClick={handleClick}
         data-testid={`custom-node-${id}`}
       >

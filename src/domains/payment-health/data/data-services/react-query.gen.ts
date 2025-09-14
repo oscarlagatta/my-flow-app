@@ -7,8 +7,9 @@ import {
 } from '@/domains/payment-health/data/data-services/types,gen';
 import {
   getApiV2SplunkDataGetAmountTransactionDetailsData,
+  getApiV2SplunkDataGetSplunkData,
   getApiV2SplunkDataGetTransactionDetailsData,
-} from '@/domains/payment-health/data/data-services/service.gen';
+} from '@/domains/payment-health/data/data-services/services.gen';
 import { client } from '@/lib/api/client.gen';
 
 type QueryKey<TOptions extends Options> = [
@@ -44,6 +45,24 @@ const createQueryKey = <TOptions extends Options>(
     params.query = options.query;
   }
   return params;
+};
+
+export const getApiV2SplunkDataGetSplunkDataQueryKey = (options?: Options) => [
+  createQueryKey('getApiV2SplunkDataGetSplunkData', options),
+];
+
+export const getApiV2SplunkDataGetSplunkDataOptions = (options?: Options) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getApiV2SplunkDataGetSplunkData({
+        ...options,
+        ...queryKey[0],
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getApiV2SplunkDataGetSplunkDataQueryKey(options),
+  });
 };
 
 export const getApiV2SplunkDataGetTransactionDetailsDataQueryKey = (

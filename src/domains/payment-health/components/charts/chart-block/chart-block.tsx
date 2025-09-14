@@ -1,7 +1,9 @@
+// checked
 'use client';
-
 import { useState } from 'react';
+import { Info } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+
 import {
   Card,
   CardContent,
@@ -22,7 +24,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import { Info } from 'lucide-react';
 import { ChartPoint } from '@/domains/payment-health/types/chart-point';
 
 interface ChartBlockProps {

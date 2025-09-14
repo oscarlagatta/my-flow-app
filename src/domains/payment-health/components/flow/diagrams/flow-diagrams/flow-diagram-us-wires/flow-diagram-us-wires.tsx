@@ -1,6 +1,8 @@
+// checked
 'use client';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
-
+import Draggable from 'react-draggable';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   addEdge,
   applyEdgeChanges,
@@ -14,32 +16,33 @@ import {
   NodeChange,
   type NodeTypes,
   type OnConnect,
+  OnEdgesChange,
+  OnNodesChange,
   ReactFlow,
   ReactFlowProvider,
   useStore,
 } from '@xyflow/react';
-
-import { toast } from 'sonner';
-
 import '@xyflow/react/dist/style.css';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { useGetSplunkUsWires } from '@/domains/payment-health/hooks/use-get-splunk-us-wires/use-get-splunk-us-wires';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+
 import {
   initialEdges,
   initialNodes,
 } from '@/domains/payment-health/assets/flow-data-us-wires/flow-data-use-wires';
+import { useGetSplunkUsWires } from '@/domains/payment-health/hooks/use-get-splunk-us-wires/use-get-splunk-us-wires';
+import { useTransactionSearchUsWiresContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
 import { computeTrafficStatusColors } from '@/domains/payment-health/utils/traffic-status-utils';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useTransactionUsWiresSearchContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
-import { TransactionDetailsTableAgGrid } from '@/domains/payment-health/components/tables/transaction-details-table-ag-grid/transaction-details-table-ag-grid';
+import { InfoSection } from '../../../../indicators/info-section/info-section';
+import PaymentSearchBoxUsWires from '@/domains/payment-health/components/search/payment-search-box-us-wires/payment-search-box-us-wires';
 import SplunkTableUsWires from '@/domains/payment-health/components/tables/splunk-table-us-wires/splunk-table-us-wires';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TransactionDetailsTableAgGrid } from '@/domains/payment-health/components/tables/transaction-details-table-ag-grid/transaction-details-table-ag-grid';
+import { TransactionSearchResultsGrid } from '@/domains/payment-health/components/tables/transaction-search-results-grid/transaction-search-results-grid';
 import CustomNodeUsWires from '@/domains/payment-health/components/flow/nodes/custom-nodes-us-wires/custom-node-us-wires';
 import SectionBackgroundNode from '@/domains/payment-health/components/flow/nodes/expandable-charts/section-background-node';
-import PaymentSearchBoxUsWires from '@/domains/payment-health/components/search/payment-search-box-us-wires/payment-search-box-us-wires';
-import { TransactionSearchResultsGrid } from '@/domains/payment-health/components/tables/transaction-search-results-grid/transaction-search-results-grid';
 
 const SECTION_IDS = [
   'bg-origination',
@@ -47,6 +50,14 @@ const SECTION_IDS = [
   'bg-middleware',
   'bg-processing',
 ];
+
+const sectionDurations = {
+  'bg-origination': 1.2,
+  'bg-validation': 2.8,
+  'bg-middleware': 1.9,
+  'bg-processing': 3.4,
+};
+
 const SECTION_WIDTH_PROPORTIONS = [0.2, 0.2, 0.25, 0.35];
 const GAP_WIDTH = 16;
 
@@ -61,7 +72,7 @@ const Flow = ({
 }) => {
   // const { hasRequiredRole } = useAuthzRules();
 
-  const { showTableView } = useTransactionUsWiresSearchContext();
+  const { showTableView } = useTransactionSearchUsWiresContext();
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -71,6 +82,7 @@ const Flow = ({
   const [connectedEdgeIds, setConnectedEdgeIds] = useState<Set<string>>(
     new Set()
   );
+
   const [lastRefetch, setLastRefetch] = useState<Date | null>(null);
 
   const [canvasHeight, setCanvasHeight] = useState<number>(500); // default height
@@ -87,7 +99,6 @@ const Flow = ({
   });
 
   const width = useStore((state) => state.width);
-  const height = useStore((state) => state.height);
 
   const isAuthorized = true; // hasRequiredRole();
 
@@ -95,7 +106,6 @@ const Flow = ({
     data: splunkData,
     isLoading,
     isError,
-    error,
     refetch,
     isFetching,
     isSuccess,
@@ -113,6 +123,9 @@ const Flow = ({
       });
     } catch (error) {
       console.error('Refetch failed:', error);
+      toast.error('Failed to refresh data.', {
+        description: 'Please check your connection and try again.',
+      });
     }
   };
 
@@ -145,10 +158,12 @@ const Flow = ({
       if (isLoading || isFetching) return;
 
       if (selectedNodeId === nodeId) {
+        // clicking the same node deselects it
         setSelectedNodeId(null);
         setConnectedNodeIds(new Set());
         setConnectedEdgeIds(new Set());
       } else {
+        // Select new node and find its connections
         const { connectedNodes, connectedEdges } = findConnections(nodeId);
         setSelectedNodeId(nodeId);
         setConnectedNodeIds(connectedNodes);
@@ -171,7 +186,9 @@ const Flow = ({
 
   // Get connected systems names for display
   const getConnectedSystemNames = useCallback(() => {
-    if (!selectedNodeId) return [];
+    if (!selectedNodeId) {
+      return [];
+    }
 
     return Array.from(connectedNodeIds)
       .map((nodeId) => {
@@ -207,7 +224,6 @@ const Flow = ({
               style: {
                 ...newNodes[nodeIndex].style,
                 width: `${sectionWidth}px`,
-                // height: `${height}px`,
               },
             };
             currentX += sectionWidth + GAP_WIDTH;
@@ -277,13 +293,13 @@ const Flow = ({
     updateCanvasHeight();
   }, [nodes]);
 
-  const onNodesChange = useCallback(
+  const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange<Node>[]) =>
       setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes]
   );
 
-  const onEdgesChange = useCallback(
+  const onEdgesChange: OnEdgesChange = useCallback(
     (changes: EdgeChange<Edge>[]) =>
       setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges]
@@ -387,9 +403,6 @@ const Flow = ({
             <AlertCircle className="h-4 w-4" />
             <span className="text-sm font-medium">Error loading data</span>
           </div>
-          <p className="text-sm text-red-500">
-            {error?.message || 'Failed to load Splunk data'}
-          </p>
           <Button
             onClick={handleRefetch}
             size="sm"
@@ -483,7 +496,7 @@ const Flow = ({
       style={{ height: `${canvasHeight}px` }}
     >
       {/*If table mode is on, render the AG Grid and hide flow*/}
-      {tableMode.show && (
+      {tableMode.show ? (
         <SplunkTableUsWires
           aitNum={tableMode.aitNum!}
           action={tableMode.action!}
@@ -496,85 +509,105 @@ const Flow = ({
             onShowSearchBox();
           }}
         />
-      )}
-
-      {/* Refresh Data Button - Icon only, docked top-right */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        {lastRefetch && !isFetching && (
-          <span className="text-muted-foreground text-xs">
-            Last updated: {lastRefetch.toLocaleTimeString()}
-          </span>
-        )}
-        <Button
-          onClick={handleRefetch}
-          disabled={isFetching}
-          variant="outline"
-          size="sm"
-          className="h-8 w-8 border-blue-200 bg-white p-0 shadow-sm hover:border-blue-300 hover:bg-blue-50"
-          title="Refresh Splunk data"
-          aria-label="Refresh Splunk data"
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
-          />
-        </Button>
-      </div>
-
-      <ReactFlow
-        nodes={nodesForFlow}
-        edges={edgesForFlow}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeTypes}
-        proOptions={{ hideAttribution: true }}
-        className="bg-white"
-        style={{ background: '#eeeff3ff' }}
-        panOnDrag={false}
-        elementsSelectable={false}
-        minZoom={1}
-        maxZoom={1}
-      >
-        <Controls />
-        <Background gap={16} size={1} />
-      </ReactFlow>
-
-      {/* Selected panel */}
-      {selectedNodeId && (
-        <div className="absolute top-4 left-4 z-10 max-w-sm rounded-lg border bg-white p-4 shadow-lg">
-          <h3 className="mb-2 text-sm font-semibold text-gray-800">
-            Selected System:{' '}
-            {(nodes.find((n) => n.id === selectedNodeId)?.data?.[
-              'title'
-            ] as ReactNode) || 'Unknown'}
-          </h3>
-          <div className="space-y-2">
-            <div>
-              <h4 className="mb-1 text-xs font-medium text-gray-600">
-                Connected Systems ({connectedNodeIds.size}):
-              </h4>
-              <div className="max-h-32 overflow-y-auto">
-                {getConnectedSystemNames().map((systemName, index) => (
-                  <div
-                    key={index}
-                    className="mb-1 rounded bg-blue-50 px-2 py-1 text-xs text-gray-700"
-                  >
-                    {typeof systemName === 'string'
-                      ? systemName
-                      : JSON.stringify(systemName)}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button
-              onClick={() => handleNodeClick(selectedNodeId)}
-              className="text-xs text-blue-600 underline hover:text-blue-800 disabled:opacity-50"
-              disabled={isLoading || isFetching}
+      ) : (
+        <>
+          {/* Refresh Data Button - Icon only, docked top-right */}
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+            {lastRefetch && !isFetching && (
+              <span className="text-muted-foreground text-xs">
+                Last updated: {lastRefetch.toLocaleTimeString()}
+              </span>
+            )}
+            <Button
+              onClick={handleRefetch}
+              disabled={isFetching}
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 border-blue-200 bg-white p-0 shadow-sm hover:border-blue-300 hover:bg-blue-50"
+              title="Refresh Splunk data"
+              aria-label="Refresh Splunk data"
             >
-              Clear Selection
-            </button>
+              <RefreshCw
+                className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+              />
+            </Button>
           </div>
-        </div>
+          <ReactFlow
+            nodes={nodesForFlow}
+            edges={edgesForFlow}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            proOptions={{ hideAttribution: true }}
+            className="bg-white"
+            style={{ background: '#eeeff3ff' }}
+            panOnDrag={false}
+            elementsSelectable={false}
+            minZoom={1}
+            maxZoom={1}
+          >
+            <Controls />
+            <Background gap={16} size={1} />
+          </ReactFlow>
+
+          {/* Connected System Panel */}
+          {selectedNodeId && (
+            <Draggable
+              onStart={() => {
+                const panel = document.getElementById(
+                  'connected-systems-panel'
+                );
+                if (panel) {
+                  panel.style.cursor = 'grabbing';
+                }
+              }}
+              onStop={() => {
+                const panel = document.getElementById(
+                  'connected-systems-panel'
+                );
+                if (panel) {
+                  panel.style.cursor = 'grab';
+                }
+              }}
+            >
+              <div className="absolute top-4 left-4 z-10 max-w-sm rounded-lg border bg-white p-4 shadow-lg">
+                <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                  Selected System:{' '}
+                  {(nodes.find((n) => n.id === selectedNodeId)?.data?.[
+                    'title'
+                  ] as ReactNode) || 'Unknown'}
+                </h3>
+                <div className="space-y-2">
+                  <div>
+                    <h4 className="mb-1 text-xs font-medium text-gray-600">
+                      Connected Systems ({connectedNodeIds.size}):
+                    </h4>
+                    <div className="max-h-32 overflow-y-auto">
+                      {getConnectedSystemNames().map((systemName, index) => (
+                        <div
+                          key={index}
+                          className="mb-1 rounded bg-blue-50 px-2 py-1 text-xs text-gray-700"
+                        >
+                          {typeof systemName === 'string'
+                            ? systemName
+                            : JSON.stringify(systemName)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleNodeClick(selectedNodeId)}
+                    className="text-xs text-blue-600 underline hover:text-blue-800 disabled:opacity-50"
+                    disabled={isLoading || isFetching}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+            </Draggable>
+          )}
+        </>
       )}
     </div>
   );
@@ -591,8 +624,7 @@ const queryClient = new QueryClient({
 
 export function FlowDiagramUsWires() {
   const { showAmountSearchResults, amountSearchParams, hideAmountResults } =
-    useTransactionUsWiresSearchContext();
-
+    useTransactionSearchUsWiresContext();
   const [showSearchBox, setShowSearchBox] = useState(true);
 
   const nodeTypes: NodeTypes = useMemo(
@@ -613,12 +645,15 @@ export function FlowDiagramUsWires() {
       <ReactFlowProvider>
         {showSearchBox && <PaymentSearchBoxUsWires />}
         {showAmountSearchResults && amountSearchParams ? (
-          <TransactionSearchResultsGrid
-            transactionAmount={amountSearchParams.amount}
-            dateStart={amountSearchParams.dateStart}
-            dateEnd={amountSearchParams.dateEnd}
-            onBack={hideAmountResults}
-          />
+          <>
+            <div>TransactionSearchResultsGrid Shows</div>
+            {/*<TransactionSearchResultsGrid*/}
+            {/*  transactionAmount={amountSearchParams.amount}*/}
+            {/*  dateStart={amountSearchParams.dateStart}*/}
+            {/*  dateEnd={amountSearchParams.dateEnd}*/}
+            {/*  onBack={hideAmountResults}*/}
+            {/*/>*/}
+          </>
         ) : (
           <Flow
             nodeTypes={nodeTypes}

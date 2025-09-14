@@ -1,16 +1,23 @@
-import { useTransactionUsWiresSearchContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
+// checked with issues
+'use client';
+
 import { useCallback, useMemo, useState } from 'react';
-import { useGetSplunkUsWiresTransactionDetailsByAmount } from '@/domains/payment-health/api/generated/hooks';
+
 import {
   ColDef,
   GridReadyEvent,
   ICellRendererParams,
   RowClickedEvent,
 } from '@ag-grid-community/core';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { AgGridReact } from '@ag-grid-community/react';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+
+import '@ag-grid-community/styles/ag-grid.css';
+import '@ag-grid-community/styles/ag-theme-quartz.css';
+import { useGetSplunkUsWiresTransactionDetailsByAmount } from '@/domains/payment-health/api/generated/hooks';
+import { useTransactionSearchUsWiresContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
 
 interface TransactionRow {
   id: string;
@@ -40,7 +47,7 @@ export function TransactionSearchResultsGrid({
   dateEnd,
   onBack,
 }: TransactionSearchResultsGridProps) {
-  const { search } = useTransactionUsWiresSearchContext();
+  const { search } = useTransactionSearchUsWiresContext();
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionRow | null>();
 
@@ -54,6 +61,8 @@ export function TransactionSearchResultsGrid({
     dateStart,
     dateEnd
   );
+
+  console.log('[] Amount search API response: ', apiResponse);
 
   const formatCellValue = useCallback((value: any, columnName: string) => {
     if (
@@ -78,6 +87,7 @@ export function TransactionSearchResultsGrid({
       }
     }
 
+    // Format amounts
     if (columnName.includes('AMT') || columnName === 'amount') {
       const numValue = Number.parseFloat(value);
       if (isNaN(numValue)) {
@@ -98,30 +108,49 @@ export function TransactionSearchResultsGrid({
     }
 
     // sbK_REF_NUM
+    // const transformedData: TransactionRow[] = apiResponse.map(
+    //   (transaction, index) => {
+    //     const raw = transaction;
+    //     return {
+    //       // id: raw.sbK_REF_NUM || `Transaction-${index}`,
+    //       // transactionRef: raw.trN_REF || '-',
+    //       // amount: raw.dbT_AMOUNT
+    //       //   ? Number.parseFloat(raw.dbT_AMOUNT).toFixed(2)
+    //       //   : '0',
+    //       // currency: raw.dbT_CUR || 'USD',
+    //       // date: raw.valuE_DATE || '-',
+    //       // source: raw.source || '-', // corrected field name
+    //       // destination: raw.SMH_DEST || '-',
+    //       // country: raw.enD_COUNTRY || '-',
+    //       // status: raw.status || '-', // included status
+    //       // aitNumber: raw.aitNumber || '-',
+    //       // aitName: raw.aitName || '-',
+    //       // orpRefNum: raw.orP_REF_NUM || '-',
+    //       // sbkRefNum: raw.sbK_REF_NUM || '-',
+    //       // INCLUDE ALL RAW DATA FOR DETAILED VIEW
+    //       ...raw, // ensure full raw data is added in case of detailed view requirement
+    //     };
+    //   }
+    // );
+
     const transformedData: TransactionRow[] = apiResponse.map(
-      (transaction, index) => {
-        const raw = transaction;
-        return {
-          // id: raw.sbK_REF_NUM || `Transaction-${index}`,
-          // transactionRef: raw.trN_REF || '-',
-          // amount: raw.dbT_AMOUNT
-          //   ? Number.parseFloat(raw.dbT_AMOUNT).toFixed(2)
-          //   : '0',
-          // currency: raw.dbT_CUR || 'USD',
-          // date: raw.valuE_DATE || '-',
-          // source: raw.source || '-', // corrected field name
-          // destination: raw.SMH_DEST || '-',
-          // country: raw.enD_COUNTRY || '-',
-          // status: raw.status || '-', // included status
-          // aitNumber: raw.aitNumber || '-',
-          // aitName: raw.aitName || '-',
-          // orpRefNum: raw.orP_REF_NUM || '-',
-          // sbkRefNum: raw.sbK_REF_NUM || '-',
-          // INCLUDE ALL RAW DATA FOR DETAILED VIEW
-          ...raw, // ensure full raw data is added in case of detailed view requirement
-        };
-      }
+      (transaction, index) => ({
+        id: `txn-${index}-${Date.now()}`,
+        transactionRef: `REF-${index}`,
+        amount: '0.00',
+        currency: 'USD',
+        date: new Date().toISOString(),
+        source: 'TEMP_SOURCE',
+        destination: 'TEMP_DESTINATION',
+        country: 'US',
+        status: 'PENDING',
+        aitNumber: 'TEMP_AIT',
+        aitName: 'Temporary AIT System',
+        // Preserve original data
+        _originalData: transaction,
+      })
     );
+
     return {
       rowData: transformedData,
       totalTransactions: transformedData.length,

@@ -6,6 +6,10 @@ export type GetApiV2SplunkDataGetAmountTransactionDetailsDataData = {
   };
 };
 
+export type GetApiV2SplunkDataGetSplunkDataResponse = unknown;
+
+export type GetApiV3SplunkDataGetSplunkDataError = unknown;
+
 export type GetApiV2SplunkDataGetAmountTransactionDetailsDataResponse = unknown;
 
 export type GetApiV2SplunkDataGetAmountTransactionDetailsDataError = unknown;

@@ -1,6 +1,7 @@
+//checked
 export interface SplunkDataItem {
   aiT_NUM: string;
-  aiT_NUM: string;
+  aiT_NAME: string;
   floW_DIRECTION: string;
   floW_AIT_NUM: string;
   floW_AIT_NAME: string;

@@ -1,4 +1,6 @@
+// checked
 import { MarkerType } from '@xyflow/react';
+
 import { type AppNode } from '../types/app-node';
 
 export const edgeStyle = { stroke: '#6b7280', strokeWidth: 2 };
@@ -28,14 +30,6 @@ export function transformApiData(
         x: sectionConfig.baseX,
         y: 100 + positionIndex * 120,
       };
-
-      // // Ensure apiNode.data exists, fallback if undefined
-      // if (!apiNode.data) {
-      //   return null; // Skip nodes with no data
-      // }
-
-      // Provide a fallback for nodes without data¬
-      // const nodeData = apiNode.data || { label: 'Unknown' };
 
       return {
         id: apiNode.id,
@@ -68,7 +62,6 @@ export function transformApiData(
         {
           ...apiEdge,
           target: target,
-          // id: `${source}-${target}`,
           type: 'smoothstep',
           style: edgeStyle,
           markerStart: marker,

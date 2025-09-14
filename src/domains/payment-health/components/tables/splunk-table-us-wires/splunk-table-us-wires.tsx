@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-
+// checked
+'use client';
+import { useEffect, useMemo, useRef } from 'react';
 import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-model';
-
 import type {
   ColDef,
   GridApi,
@@ -17,13 +17,13 @@ import { SetFilterModule } from '@ag-grid-enterprise/set-filter';
 import { ArrowLeft } from 'lucide-react';
 
 // import { useAuthzRoles } from '@/0fo/auth';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGetSplunkUsWires } from '@/domains/payment-health/hooks/use-get-splunk-us-wires/use-get-splunk-us-wires';
-import { SplunkDataItem } from '@/domains/payment-health/types/splunk-data-item';
 
-// Enterprise license
+import { useGetSplunkUsWires } from '@/domains/payment-health/hooks/use-get-splunk-us-wires/use-get-splunk-us-wires';
+
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
   SetFilterModule,
@@ -124,7 +124,7 @@ function AnalyticsContextRenderer(props: ICellRendererParams) {
 }
 
 export default function SplunkTableUsWires({
-  aitNum: aitNum,
+  aitNum,
   action,
   onBack,
 }: SplunkAgGridProps) {
@@ -134,17 +134,17 @@ export default function SplunkTableUsWires({
   const { data, isLoading, isError } = useGetSplunkUsWires({
     enabled: isAuthorized,
   });
-
   const quickFilter = '';
+
   const gridApiRef = useRef<GridApi | null>(null);
 
   const rows = useMemo(() => {
     if (!data) return [];
-    return data.filter((r: SplunkDataItem) => r.aiT_NUM === aitNum);
+    return data.filter((r) => r.aiT_NUM === aitNum);
   }, [data, aitNum]);
 
   const rowData = useMemo(() => {
-    return rows.map((r: SplunkDataItem) => {
+    return rows.map((r) => {
       const avg = Number.parseFloat(r.averagE_TRANSACTION_COUNT);
       const curr = Number.parseFloat(r.currenT_TRANSACTION_COUNT);
       const deltaPct =
@@ -167,7 +167,7 @@ export default function SplunkTableUsWires({
     });
   }, [rows]);
 
-  const actionHighlightCols = useMemo<Set<string>>(() => {
+  const actionHighlightCols = useMemo(() => {
     if (action === 'flow')
       return new Set(['iS_TRAFFIC_FLOWING', 'currenT_TRANSACTION_COUNT']);
     if (action === 'trend')
@@ -184,7 +184,7 @@ export default function SplunkTableUsWires({
         actionHighlightCols.has(field)
           ? `${numberCellClass} ${emphasized}`
           : numberCellClass,
-      headerClass: actionHighlightCols.has(field) ? `emphasized` : '',
+      headerClass: actionHighlightCols.has(field) ? emphasized : '',
     });
 
     return [
@@ -222,6 +222,11 @@ export default function SplunkTableUsWires({
         minWidth: 140,
         sortable: true,
         filter: false,
+        cellStyle: {
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
       },
       {
         headerName: 'Flow AIT Name',
@@ -238,7 +243,7 @@ export default function SplunkTableUsWires({
         filter: false,
         cellRenderer: TrafficCellRenderer,
         headerClass: actionHighlightCols.has('iS_TRAFFIC_FLOWING')
-          ? 'emphasized'
+          ? emphasized
           : '',
         cellStyle: {
           display: 'flex',
@@ -254,7 +259,7 @@ export default function SplunkTableUsWires({
         filter: false,
         cellRenderer: OnTrendCellRenderer,
         headerClass: actionHighlightCols.has('iS_TRAFFIC_ON_TREND')
-          ? 'emphasized'
+          ? emphasized
           : '',
         cellStyle: {
           display: 'flex',
@@ -352,7 +357,7 @@ export default function SplunkTableUsWires({
         minWidth: 150,
         sortable: true,
         filter: false,
-        headerClass: actionHighlightCols.has('_balanced') ? 'emphasized' : '',
+        headerClass: actionHighlightCols.has('_balanced') ? emphasized : '',
       },
       {
         headerName: 'Analytics Context',
@@ -389,12 +394,16 @@ export default function SplunkTableUsWires({
   const onGridReady = (params: any) => {
     gridApiRef.current = params.api;
     params.api.setGridOption('quickFilterText', quickFilter);
-
     // Fit columns after initial render
     setTimeout(() => {
       try {
         params.api.sizeColumnsToFit();
-      } catch {}
+      } catch (error) {
+        console.log(
+          'Column fitting failed, will retyr on grid size change',
+          error
+        );
+      }
     }, 0);
   };
 

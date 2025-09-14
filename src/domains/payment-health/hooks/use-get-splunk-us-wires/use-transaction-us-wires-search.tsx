@@ -1,15 +1,5 @@
+// checked
 'use client';
-
-/**
- * Transaction search hook (HeyAPI integration)
- *
- * Now uses HeyAPI-generated methods to fetch from real Splunk API:
- * - useGetSplunkUsWiresTransactionDetails: Main hook for fetching transaction data
- * - useGetSplunkUsWiresTransactionDetailsByAmount: Amount-based search hook
- * - Transforms API response to maintain compatibility with existing UI components
- * - Handles data mapping between new API structure and legacy TransactionSummary format
- */
-
 import { useState, useMemo } from 'react';
 
 import {
@@ -18,11 +8,8 @@ import {
   SplunkTransactionDetails,
   TransactionApiResponse,
 } from '@/domains/payment-health/types/splunk-transaction';
-// import {
-//   useGetSplunkUsWiresTransactionDetails,
-//   useGetSplunkUsWiresTransactionDetailsByAmount,
-// } from '@/domains/payment-health/api/generated/hooks';
 import { GetApiV2SplunkDataGetTransactionDetailsDataResponse } from '@/domains/payment-health/types/transaction-details-data-response';
+
 import {
   useGetSplunkUsWiresTransactionDetails,
   useGetSplunkUsWiresTransactionDetailsByAmount,
@@ -135,17 +122,17 @@ function transformApiResponse(
   searchKey: string,
   apiResponse: GetApiV2SplunkDataGetTransactionDetailsDataResponse
 ): TransactionApiResponse {
-  console.log('[v0] Raw API response:', apiResponse);
+  console.log('Raw API response:', apiResponse);
 
   // Handle both single object and array responses
   const responseArray = Array.isArray(apiResponse)
     ? apiResponse
     : [apiResponse];
 
-  console.log('[v0] Response array after normalization:', responseArray);
+  console.log('Response array after normalization:', responseArray);
 
   if (!responseArray.length || !responseArray[0]) {
-    console.log('[v0] No response data available');
+    console.log('No response data available');
     return {
       id: searchKey,
       results: [],
@@ -213,7 +200,7 @@ export function useTransactionUsWiresSearch(defaultParams: SearchParams = {}) {
   const { data, isLoading, isFetching, isError, error, refetch } =
     useAmountSearch ? amountBasedQuery : idBasedQuery;
 
-  console.log('[v0] Search hook state:', {
+  console.log('Search hook state:', {
     searchParams,
     enabled,
     useAmountSearch,

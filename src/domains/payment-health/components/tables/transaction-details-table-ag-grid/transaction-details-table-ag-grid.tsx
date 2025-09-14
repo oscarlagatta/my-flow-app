@@ -1,12 +1,14 @@
+// checked
+'use client';
 import { useCallback, useMemo, useState } from 'react';
 
+import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-model';
 import {
   ColDef,
   GridReadyEvent,
   ICellRendererParams,
   ModuleRegistry,
 } from '@ag-grid-community/core';
-
 import { AgGridReact } from '@ag-grid-community/react';
 import { MasterDetailModule } from '@ag-grid-enterprise/master-detail';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
@@ -15,16 +17,14 @@ import { Button } from '@/components/ui/button';
 
 import '@ag-grid-community/styles/ag-grid.css';
 import '@ag-grid-community/styles/ag-theme-quartz.css';
-import { useTransactionUsWiresSearchContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
+import { useTransactionSearchUsWiresContext } from '@/domains/payment-health/providers/us-wires/us-wires-transaction-search-provider';
 import { SplunkTransactionDetail } from '@/domains/payment-health/types/splunk-transaction';
-import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-model';
 
 // Register the required AG Grid modules
 ModuleRegistry.registerModules([ClientSideRowModelModule, MasterDetailModule]);
 
 interface TransactionRow {
   id: string;
-
   [key: string]: any;
 }
 
@@ -38,22 +38,21 @@ const formatSourceType = (sourceType: string) => {
 
 export function TransactionDetailsTableAgGrid() {
   const { results, selectedAitId, hideTable, id } =
-    useTransactionUsWiresSearchContext();
+    useTransactionSearchUsWiresContext();
 
   const { sourceTypeTables, allColumns } = useMemo(() => {
     if (!results || !selectedAitId)
       return { sourceTypeTables: [], allColumns: [] };
 
     const relevantResults = results.filter(
-      (detail) => detail.aitNumber === selectedAitId
+      (detail: SplunkTransactionDetail) => {
+        return detail.aitNumber === selectedAitId;
+      }
     );
 
     const groupedBySourceType: Record<string, SplunkTransactionDetail[]> =
       relevantResults.reduce(
-        (
-          acc: Record<string, SplunkTransactionDetail[]>,
-          detail: SplunkTransactionDetail
-        ) => {
+        (acc, detail) => {
           const sourceType: string = detail.sourceType || 'Unknown Source Type';
           if (!acc[sourceType]) {
             acc[sourceType] = [];

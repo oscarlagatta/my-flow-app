@@ -1,3 +1,4 @@
+// checked
 export const classToParentId: Record<string, string> = {
   origination: 'bg-origination',
   'payment validation and routing': 'bg-validation',

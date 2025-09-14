@@ -1,12 +1,9 @@
-import { type Node } from '@xyflow/react';
-import apiData from './us-wires-data.json';
-import { transformApiData } from '@/domains/payment-health/utils/transform-utils';
+// Checked
+import { type AppNode } from '../../types/app-node';
 import { classToParentId } from '@/domains/payment-health/utils/shared-mappings';
+import { transformApiData } from '@/domains/payment-health/utils/transform-utils';
 
-// Define a custom type for our application's node data, which uses parentId
-export type AppNode = Omit<Node, 'parentNode'> & {
-  parentId?: string;
-};
+import apiData from './us-wires-data.json';
 
 // --- Static Section Definitions ---
 const backgroundNodes: AppNode[] = [

@@ -232,7 +232,7 @@ export function TransactionUsWiresSearchProvider({
   );
 }
 
-export function useTransactionUsWiresSearchContext() {
+export function useTransactionSearchUsWiresContext() {
   const ctx = useContext(TransactionUsWiresSearchContext);
   if (!ctx) {
     throw new Error(

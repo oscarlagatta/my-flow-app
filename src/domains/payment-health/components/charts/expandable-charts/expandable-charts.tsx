@@ -1,8 +1,8 @@
+// checked
 'use client';
-
-import ChartBlock from '@/domains/payment-health/components/charts/chart-block/chart-block';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useServiceCharts } from '@/domains/payment-health/hooks/hooks';
+import ChartBlock from '@/domains/payment-health/components/charts/chart-block/chart-block';
 
 export default function ExpandableCharts(props: any) {
   const serviceId = props.data.id;
